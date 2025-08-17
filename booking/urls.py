@@ -1,12 +1,13 @@
 # Импортируем функции для создания URL маршрутов
 from django.urls import path, include
-
+from booking.apps import BookingConfig
 # Импортируем DefaultRouter для автоматического создания URL для ViewSet
 from rest_framework.routers import DefaultRouter
 
 # Импортируем наши представления (views)
 from .views import TableViewSet, free_dates_page
 
+app_name = BookingConfig.name
 # Создаем экземпляр роутера для автоматической генерации URL
 # DefaultRouter автоматически создает стандартные URL для ViewSet:
 # - /api/tables/ - список всех столов (GET) и создание (POST)

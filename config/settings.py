@@ -77,7 +77,7 @@ TEMPLATES = [
                 # Процессоры контекста - добавляют переменные во все шаблоны
                 'django.template.context_processors.request',      # Объект request
                 'django.contrib.auth.context_processors.auth',     # Информация о пользователе
-                'django.contrib.auth.messages.context_processors.messages',  # Сообщения
+                'django.contrib.messages.context_processors.messages' # Сообщения
             ],
         },
     },

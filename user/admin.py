@@ -3,7 +3,7 @@ from .models import CustomUser
 
 
 @admin.register(CustomUser)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ("id", "email", "phone_namber", "country")
+class CustomAdmin(admin.ModelAdmin):
+    list_display = ("id", "email", "phone_number", "name")
     list_filter = ("email",)
-    search_fields = ("email", "country")
+    search_fields = ("email", "phone_number")

@@ -87,7 +87,7 @@ class Booking(models.Model):
     # null=True - пользователь может быть не указан (анонимное бронирование)
     # blank=True - поле может быть пустым в формах
     # on_delete=models.SET_NULL - при удалении пользователя бронирование остается, но user становится NULL
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         get_user_model(),  # Получаем модель пользователя (стандартную или кастомную)
         on_delete=models.SET_NULL, 
         null=True, 
