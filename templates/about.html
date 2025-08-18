@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}О ресторане{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">О нашем ресторане</h1>
+
+        <div class="row">
+            <div class="col-md-8">
+                <h3>История</h3>
+                <p class="lead">
+                    Наш ресторан был основан в 2010 году с целью создания места,
+                    где гости могут насладиться изысканной кухней в уютной атмосфере.
+                </p>
+
+                <h3>Философия</h3>
+                <p>
+                    Мы верим, что еда - это не просто питание, а искусство,
+                    которое объединяет людей и создает особые моменты в жизни.
+                </p>
+
+                <h3>Шеф-повар</h3>
+                <p>
+                    Наш шеф-повар имеет более 15 лет опыта работы в лучших
+                    ресторанах Европы и России. Каждое блюдо готовится с любовью
+                    и вниманием к деталям.
+                </p>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-award fa-3x text-warning mb-3"></i>
+                        <h5>Награды</h5>
+                        <p>Лучший ресторан города 2023</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3>Наши преимущества</h3>
+                <div class="row">
+                    <div class="col-md-3 text-center mb-4">
+                        <i class="fas fa-leaf fa-2x text-success mb-2"></i>
+                        <h6>Свежие продукты</h6>
+                        <p>Используем только свежие сезонные ингредиенты</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-4">
+                        <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                        <h6>Уютная атмосфера</h6>
+                        <p>Идеально для романтических ужинов и семейных праздников</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-4">
+                        <i class="fas fa-music fa-2x text-info mb-2"></i>
+                        <h6>Живая музыка</h6>
+                        <p>По выходным выступают талантливые музыканты</p>
+                    </div>
+                    <div class="col-md-3 text-center mb-4">
+                        <i class="fas fa-car fa-2x text-warning mb-2"></i>
+                        <h6>Парковка</h6>
+                        <p>Бесплатная парковка для гостей ресторана</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

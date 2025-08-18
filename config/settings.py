@@ -143,7 +143,7 @@ USE_TZ = True
 # ==================== СТАТИЧЕСКИЕ ФАЙЛЫ ====================
 
 # STATIC_URL - URL для статических файлов (CSS, JavaScript, изображения)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 # STATICFILES_DIRS - дополнительные папки со статическими файлами
 STATICFILES_DIRS = [BASE_DIR / "static"]
@@ -163,3 +163,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # По умолчанию Django использует django.contrib.auth.models.User
 # Здесь мы указываем нашу кастомную модель из приложения user
 AUTH_USER_MODEL = 'user.CustomUser'
+
+# ==================== НАСТРОЙКИ ПОЧТЫ ====================
+
+# Читаем настройки почтового сервера из .env, чтобы не хранить чувствительные данные в коде
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.lower() in ('1', 'true', 'yes', 'on')
+
+EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', False)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@example.com')
+SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)

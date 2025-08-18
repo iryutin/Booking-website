@@ -1,5 +1,7 @@
 # Импортируем базовый класс для создания моделей Django
 from django.db import models
+from django.db.models import Q
+import uuid
 # Импортируем функцию для получения модели пользователя (стандартная или кастомная)
 from django.contrib.auth import get_user_model
 
@@ -82,8 +84,7 @@ class Booking(models.Model):
         verbose_name="Стол",
         help_text="Какой стол забронирован"
     )
-    
-    # OneToOneField - связь "один к одному" с пользователем
+
     # null=True - пользователь может быть не указан (анонимное бронирование)
     # blank=True - поле может быть пустым в формах
     # on_delete=models.SET_NULL - при удалении пользователя бронирование остается, но user становится NULL
@@ -105,6 +106,32 @@ class Booking(models.Model):
         help_text="Когда было создано бронирование"
     )
 
+    # Статус подтверждения бронирования
+    is_confirmed = models.BooleanField(
+        default=False,
+        verbose_name="Подтверждено",
+        help_text="Подтверждено ли бронирование пользователем"
+    )
+
+    # Токен для подтверждения бронирования по ссылке
+    confirmation_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name="Токен подтверждения",
+        help_text="Уникальный токен для подтверждения бронирования"
+    )
+
+    # Время подтверждения
+    confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Подтверждено в",
+        help_text="Время, когда бронирование было подтверждено"
+    )
+
     class Meta:
         """
         Мета-класс для дополнительных настроек модели
@@ -113,17 +140,24 @@ class Booking(models.Model):
         verbose_name_plural = "Бронирования"
         # Сортировка по дате бронирования (сначала новые)
         ordering = ['-booking_date']
-        # Уникальность: один стол не может быть забронирован на одну дату дважды
-        unique_together = ['table', 'booking_date']
+        # Уникальность: подтвержденное бронирование для стола на дату только одно
+        constraints = [
+            models.UniqueConstraint(
+                fields=['table', 'booking_date'],
+                condition=Q(is_confirmed=True),
+                name='unique_confirmed_booking_per_table_date'
+            )
+        ]
 
     def __str__(self):
         """
         Метод для строкового представления объекта
         """
+        status = "подтверждено" if self.is_confirmed else "неподтверждено"
         if self.user:
-            return f"Бронирование {self.user.username} на {self.booking_date} столик {self.table}"
+            return f"Бронирование {self.user.username} на {self.booking_date} столик {self.table} ({status})"
         else:
-            return f"Бронирование на {self.booking_date} столик {self.table} (без пользователя)"
+            return f"Бронирование на {self.booking_date} столик {self.table} (без пользователя, {status})"
 
     def is_active_booking(self):
         """
@@ -133,4 +167,12 @@ class Booking(models.Model):
         from django.utils import timezone
         today = timezone.now().date()
         return self.booking_date >= today
+
+    def confirm(self):
+        """Подтверждает бронирование, фиксируя время и очищая токен."""
+        from django.utils import timezone
+        self.is_confirmed = True
+        self.confirmed_at = timezone.now()
+        self.confirmation_token = None
+        self.save(update_fields=["is_confirmed", "confirmed_at", "confirmation_token"])
 

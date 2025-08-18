@@ -5,7 +5,7 @@ from booking.apps import BookingConfig
 from rest_framework.routers import DefaultRouter
 
 # Импортируем наши представления (views)
-from .views import TableViewSet, free_dates_page
+from .views import TableViewSet, free_dates_page, HomePageView, AboutRestaurantView, ProfileView
 
 app_name = BookingConfig.name
 # Создаем экземпляр роутера для автоматической генерации URL
@@ -24,10 +24,18 @@ router.register(r'tables', TableViewSet)
 # urlpatterns - список URL маршрутов Django
 # Django проходит по этому списку сверху вниз и ищет первый подходящий URL
 urlpatterns = [
+    # Главная страница
+    path('', HomePageView.as_view(), name='home'),
     # Пустой путь '' - главная страница сайта
     # free_dates_page - функция-представление, которая будет вызвана
     # name='free_dates_page' - имя для обратной генерации URL в шаблонах
-    path('', free_dates_page, name='free_dates_page'),
+    path('booking/', free_dates_page, name='free_dates_page'),
+
+    # Страница "О ресторане"
+    path('about/', AboutRestaurantView.as_view(), name='about'),
+
+    # Личный кабинет
+    path('profile/', ProfileView.as_view(), name='profile'),
     
     # /api/ - префикс для всех API endpoints
     # include(router.urls) - включает все URL, созданные роутером
