@@ -44,10 +44,10 @@ class BookingSerializer(serializers.ModelSerializer):
     - user: OneToOneField -> JSON объект с данными пользователя (или только ID)
     - created_date: DateTimeField -> JSON строка в формате ISO 8601
     """
-    
+    time_slot_display = serializers.CharField(source='get_time_slot_display', read_only=True)
     class Meta:
         model = Booking
-        fields = '__all__'
+        fields = ['id', 'table', 'booking_date', 'time_slot', 'time_slot_display', 'is_confirmed']
         
         # Можно настроить более детально:
         # fields = ['id', 'booking_date', 'table', 'user', 'created_date']

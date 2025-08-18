@@ -9,425 +9,264 @@
         <div class="text-center py-4 bg-light rounded mb-4">
             <h1 class="display-4">
                 <i class="fas fa-calendar-check text-primary me-3"></i>
-                Свободные даты для бронирования
+                Бронирование столов
             </h1>
-            <p class="lead text-muted">Выберите удобную дату и время для вашего столика</p>
-            
+            <p class="lead text-muted">Выберите дату, время и столик</p>
+
             <!-- Предупреждение для неавторизованных пользователей -->
             {% if not user.is_authenticated %}
                 <div class="alert alert-warning mt-3">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Внимание!</strong> Для бронирования столика необходимо 
-                    <a href="{% url 'user:login' %}" class="alert-link">войти в систему</a> или 
+                    <strong>Внимание!</strong> Для бронирования столика необходимо
+                    <a href="{% url 'user:login' %}" class="alert-link">войти в систему</a> или
                     <a href="{% url 'user:register' %}" class="alert-link">зарегистрироваться</a>.
                 </div>
             {% endif %}
         </div>
 
-        <!-- Кнопка обновления -->
+        <!-- Выбор даты -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><i class="far fa-calendar-alt me-2"></i>Выберите дату</h5>
+                <input type="date" id="datePicker" class="form-control" min="{{ today|date:'Y-m-d' }}" max="{{ max_date|date:'Y-m-d' }}">
+            </div>
+        </div>
+
+        <!-- Кнопка поиска -->
         <div class="text-center mb-4">
-            <button class="btn btn-primary btn-lg" onclick="loadFreeDates()">
-                <i class="fas fa-sync-alt me-2"></i>Обновить данные
+            <button class="btn btn-primary btn-lg" onclick="loadAvailableSlots()">
+                <i class="fas fa-search me-2"></i>Найти доступные слоты
             </button>
         </div>
 
-        <!-- Статистика -->
-        <div class="row mb-4" id="stats" style="display: none;">
-            <div class="col-md-4 mb-3">
-                <div class="card bg-primary text-white text-center">
-                    <div class="card-body">
-                        <h3 class="card-title" id="total-tables">0</h3>
-                        <p class="card-text">Всего столов</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mb-3">
-                <div class="card bg-success text-white text-center">
-                    <div class="card-body">
-                        <h3 class="card-title" id="total-free-dates">0</h3>
-                        <p class="card-text">Свободных дат</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mb-3">
-                <div class="card bg-info text-white text-center">
-                    <div class="card-body">
-                        <h3 class="card-title" id="date-range">30</h3>
-                        <p class="card-text">Дней вперед</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Индикатор загрузки -->
-        <div id="loading" class="text-center py-5">
+        <div id="loading" class="text-center py-5" style="display: none;">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Загрузка...</span>
             </div>
-            <p class="mt-3 text-muted">Загружаем данные о свободных датах...</p>
+            <p class="mt-3 text-muted">Ищем свободные слоты...</p>
         </div>
 
         <!-- Сообщение об ошибке -->
         <div id="error" class="alert alert-danger" style="display: none;">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            Произошла ошибка при загрузке данных. Попробуйте обновить страницу.
+            <span id="error-message"></span>
         </div>
 
-        <!-- Контейнер для столов -->
-        <div id="tables-container" class="row" style="display: none;"></div>
+        <!-- Контейнер для результатов -->
+        <div id="results-container" style="display: none;">
+            <h4 class="mb-3">Доступные слоты на <span id="selected-date"></span></h4>
+
+            <div class="row" id="slots-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно бронирования -->
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Подтверждение бронирования</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы хотите забронировать:</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Стол:</span>
+                        <strong id="modal-table-number"></strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Дата:</span>
+                        <strong id="modal-date"></strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Время:</span>
+                        <strong id="modal-time"></strong>
+                    </li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    После подтверждения на указанный email придет письмо с деталями бронирования.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" id="confirmBookingBtn">Подтвердить</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    // Функция для загрузки свободных дат
-    async function loadFreeDates() {
+    // Текущая дата в формате YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+
+    // Установка минимальной даты в календаре
+    document.getElementById('datePicker').value = today;
+
+    // Функция для загрузки доступных слотов
+    async function loadAvailableSlots() {
+        const date = document.getElementById('datePicker').value;
         const loading = document.getElementById('loading');
         const error = document.getElementById('error');
-        const tablesContainer = document.getElementById('tables-container');
-        const stats = document.getElementById('stats');
+        const results = document.getElementById('results-container');
 
         loading.style.display = 'block';
         error.style.display = 'none';
-        tablesContainer.style.display = 'none';
-        stats.style.display = 'none';
+        results.style.display = 'none';
 
         try {
-            const response = await fetch('/api/tables/all-free-dates/');
+            const response = await fetch(`/api/tables/available-slots/?date=${date}`);
+
             if (!response.ok) {
-                throw new Error('Ошибка сети');
+                throw new Error('Ошибка сервера');
             }
 
             const data = await response.json();
-            displayTables(data);
-            displayStats(data);
-            
+            displayAvailableSlots(data, date);
+
             loading.style.display = 'none';
-            tablesContainer.style.display = 'block';
-            stats.style.display = 'block';
+            results.style.display = 'block';
 
         } catch (err) {
             console.error('Ошибка:', err);
             loading.style.display = 'none';
+            document.getElementById('error-message').textContent = err.message;
             error.style.display = 'block';
         }
     }
 
-    // Функция для отображения статистики
-    function displayStats(data) {
-        const totalTables = Object.keys(data.tables).length;
-        let totalFreeDates = 0;
-        
-        Object.values(data.tables).forEach(table => {
-            totalFreeDates += table.free_dates.length;
+    // Функция для отображения доступных слотов
+    function displayAvailableSlots(data, date) {
+        const slotsContainer = document.getElementById('slots-container');
+        const dateElement = document.getElementById('selected-date');
+
+        // Форматируем дату для отображения
+        const formattedDate = new Date(date).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            weekday: 'long'
         });
 
-        document.getElementById('total-tables').textContent = totalTables;
-        document.getElementById('total-free-dates').textContent = totalFreeDates;
-        document.getElementById('date-range').textContent = '30';
-    }
+        dateElement.textContent = formattedDate;
+        slotsContainer.innerHTML = '';
 
-    // Функция для отображения столов
-    function displayTables(data) {
-        const container = document.getElementById('tables-container');
-        container.innerHTML = '';
+        // Создаем карточки для каждого стола
+        for (const [tableNumber, tableData] of Object.entries(data.tables)) {
+            if (tableData.free_slots.length > 0) {
+                const tableCard = document.createElement('div');
+                tableCard.className = 'col-md-6 col-lg-4 mb-4';
 
-        Object.entries(data.tables).forEach(([tableNumber, tableData]) => {
-            const tableCard = createTableCard(tableNumber, tableData);
-            container.appendChild(tableCard);
-        });
-    }
+                tableCard.innerHTML = `
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Стол ${tableNumber}</h5>
+                            <span class="badge bg-primary">${tableData.capacity} чел.</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Свободные слоты:</h6>
+                            <div class="d-flex flex-wrap gap-2" id="slots-table-${tableNumber}"></div>
+                        </div>
+                    </div>
+                `;
 
-    // Функция для создания карточки стола
-    function createTableCard(tableNumber, tableData) {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'col-lg-6 col-xl-4 mb-4';
+                slotsContainer.appendChild(tableCard);
 
-        const card = document.createElement('div');
-        card.className = 'card h-100 shadow-sm';
-
-        const header = document.createElement('div');
-        header.className = 'card-header d-flex justify-content-between align-items-center';
-
-        const tableNumberDiv = document.createElement('h5');
-        tableNumberDiv.className = 'mb-0 text-primary';
-        tableNumberDiv.innerHTML = `<i class="fas fa-chair me-2"></i>Стол ${tableNumber}`;
-
-        const capacityBadge = document.createElement('span');
-        capacityBadge.className = 'badge bg-primary';
-        capacityBadge.textContent = `${tableData.capacity} мест`;
-
-        header.appendChild(tableNumberDiv);
-        header.appendChild(capacityBadge);
-
-        const body = document.createElement('div');
-        body.className = 'card-body';
-
-        const datesContainer = document.createElement('div');
-
-        // Свободные даты
-        if (tableData.free_dates.length > 0) {
-            const freeGroup = createDateGroup('Свободные даты', tableData.free_dates, 'success', tableNumber);
-            datesContainer.appendChild(freeGroup);
-        }
-
-        // Забронированные даты
-        if (tableData.booked_dates.length > 0) {
-            const bookedGroup = createDateGroup('Забронировано', tableData.booked_dates, 'danger', tableNumber);
-            datesContainer.appendChild(bookedGroup);
-        }
-
-        body.appendChild(datesContainer);
-        card.appendChild(header);
-        card.appendChild(body);
-        colDiv.appendChild(card);
-
-        return colDiv;
-    }
-
-    // Функция для создания группы дат
-    function createDateGroup(title, dates, variant, tableNumber) {
-        const group = document.createElement('div');
-        group.className = 'mb-3';
-
-        const titleH6 = document.createElement('h6');
-        titleH6.className = `text-${variant} mb-2`;
-        titleH6.innerHTML = `<i class="fas fa-${variant === 'success' ? 'check-circle' : 'times-circle'} me-1"></i>${title}`;
-
-        const datesGrid = document.createElement('div');
-        datesGrid.className = 'd-flex flex-wrap gap-1';
-
-        dates.forEach(dateStr => {
-            if (variant === 'success') {
-                // Для свободных дат создаем кнопку
-                const dateButton = document.createElement('button');
-                dateButton.type = 'button';
-                dateButton.className = `btn btn-outline-success btn-sm`;
-                dateButton.textContent = formatDate(dateStr);
-                dateButton.title = `Забронировать стол ${tableNumber} на ${formatDate(dateStr)}`;
-                
-                // Добавляем обработчик клика для открытия модального окна
-                dateButton.addEventListener('click', function() {
-                    showBookingModal(tableNumber, dateStr, formatDate(dateStr));
+                // Добавляем кнопки для каждого временного слота
+                const slotsDiv = document.getElementById(`slots-table-${tableNumber}`);
+                tableData.free_slots.forEach(slot => {
+                    const slotBtn = document.createElement('button');
+                    slotBtn.className = 'btn btn-outline-success btn-sm';
+                    slotBtn.textContent = slot;
+                    slotBtn.onclick = () => showBookingModal(tableNumber, date, slot);
+                    slotsDiv.appendChild(slotBtn);
                 });
-                
-                datesGrid.appendChild(dateButton);
-                
-            } else {
-                // Для забронированных дат оставляем span
-                const dateItem = document.createElement('span');
-                dateItem.className = `badge bg-outline-danger text-danger`;
-                dateItem.style.fontSize = '0.8rem';
-                dateItem.textContent = formatDate(dateStr);
-                dateItem.title = `Забронировано на ${formatDate(dateStr)}`;
-                datesGrid.appendChild(dateItem);
             }
-        });
-
-        group.appendChild(titleH6);
-        group.appendChild(datesGrid);
-
-        return group;
-    }
-
-    // Функция для форматирования даты
-    function formatDate(dateStr) {
-        const date = new Date(dateStr);
-        const day = date.getDate();
-        const month = date.getMonth() + 1;
-        return `${day < 10 ? '0' + day : day}.${month < 10 ? '0' + month : month}`;
+        }
     }
 
     // Функция для показа модального окна бронирования
-    function showBookingModal(tableNumber, dateStr, formattedDate) {
-        // Создаем модальное окно
-        const modal = document.createElement('div');
-        modal.className = 'modal fade';
-        modal.id = 'bookingModal';
-        modal.setAttribute('tabindex', '-1');
-        modal.setAttribute('aria-labelledby', 'bookingModalLabel');
-        modal.setAttribute('aria-hidden', 'true');
-        
-        // HTML содержимое модального окна
-        modal.innerHTML = `
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header bg-success text-white">
-                        <h5 class="modal-title" id="bookingModalLabel">
-                            <i class="fas fa-calendar-check me-2"></i>Подтверждение бронирования
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="text-center mb-4">
-                            <i class="fas fa-question-circle fa-3x text-success mb-3"></i>
-                            <h6>Вы хотите забронировать столик?</h6>
-                        </div>
-                        
-                        <div class="row text-center mb-3">
-                            <div class="col-6">
-                                <div class="card border-success">
-                                    <div class="card-body py-2">
-                                        <small class="text-muted">Стол</small>
-                                        <div class="fw-bold text-success">№${tableNumber}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="card border-info">
-                                    <div class="card-body py-2">
-                                        <small class="text-muted">Дата</small>
-                                        <div class="fw-bold text-info">${formattedDate}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            После подтверждения бронирования вы будете перенаправлены на страницу оформления заказа.
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-2"></i>Нет, отменить
-                        </button>
-                        <button type="button" class="btn btn-success" onclick="confirmBooking(${tableNumber}, '${dateStr}')">
-                            <i class="fas fa-check me-2"></i>Да, забронировать
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Добавляем модальное окно на страницу
-        document.body.appendChild(modal);
-        
-        // Создаем экземпляр Bootstrap модального окна
-        const bootstrapModal = new bootstrap.Modal(modal);
-        
-        // Показываем модальное окно
-        bootstrapModal.show();
-        
-        // Удаляем модальное окно из DOM после закрытия
-        modal.addEventListener('hidden.bs.modal', function() {
-            document.body.removeChild(modal);
-        });
+    function showBookingModal(tableNumber, date, timeSlot) {
+        const modal = new bootstrap.Modal(document.getElementById('bookingModal'));
+
+        // Заполняем данные в модальном окне
+        document.getElementById('modal-table-number').textContent = tableNumber;
+        document.getElementById('modal-date').textContent = new Date(date).toLocaleDateString('ru-RU');
+        document.getElementById('modal-time').textContent = timeSlot;
+
+        // Обработчик подтверждения бронирования
+        document.getElementById('confirmBookingBtn').onclick = async () => {
+            modal.hide();
+            await createBooking(tableNumber, date, timeSlot);
+        };
+
+        modal.show();
     }
 
-    // Функция для подтверждения бронирования
-    async function confirmBooking(tableNumber, dateStr) {
-        // Проверяем авторизацию пользователя через переменную Django
+    // Функция для создания бронирования
+    async function createBooking(tableNumber, date, timeSlot) {
         const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
-        
+
         if (!isAuthenticated) {
-            // Если пользователь не авторизован, показываем модальное окно с требованием авторизации
-            showAuthRequiredModal();
+            showErrorNotification('Для бронирования необходимо войти в систему');
             return;
         }
-        
-        // Закрываем модальное окно
-        const modal = document.getElementById('bookingModal');
-        const bootstrapModal = bootstrap.Modal.getInstance(modal);
-        bootstrapModal.hide();
-        
-        // Показываем индикатор загрузки
+
         showLoadingNotification('Создание бронирования...');
-        
+
         try {
-            // Отправляем POST запрос на создание бронирования через ViewSet
             const response = await fetch('/api/tables/create-booking/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
+                    'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
                     table_number: tableNumber,
-                    booking_date: dateStr
+                    date: date,
+                    time_slot: timeSlot
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok) {
-                // Бронирование успешно создано
-                hideLoadingNotification();
-                showSuccessNotification(tableNumber, dateStr, data.booking.id);
-                
-                // Обновляем страницу, чтобы показать новое бронирование
-                setTimeout(() => {
-                    loadFreeDates();
-                }, 2000);
-                
+                showSuccessNotification('Бронирование создано! Проверьте email для подтверждения');
+                loadAvailableSlots(); // Обновляем список слотов
             } else {
-                // Ошибка при создании бронирования
-                hideLoadingNotification();
-                showErrorNotification(data.error || 'Ошибка при создании бронирования');
+                throw new Error(data.error || 'Ошибка при создании бронирования');
             }
-            
-        } catch (error) {
-            // Ошибка сети
+        } catch (err) {
+            showErrorNotification(err.message);
+        } finally {
             hideLoadingNotification();
-            showErrorNotification('Ошибка сети. Попробуйте еще раз.');
-            console.error('Ошибка:', error);
         }
     }
 
-    // Функция для показа уведомления об успешном бронировании
-    function showSuccessNotification(tableNumber, dateStr, bookingId) {
-        // Создаем toast уведомление
-        const toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            // Создаем контейнер для toast, если его нет
-            const container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-            container.style.zIndex = '1055';
-            document.body.appendChild(container);
-        }
-        
-        const toastId = `toast-${Date.now()}`;
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.id = toastId;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="toast-header bg-success text-white">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong class="me-auto">Бронирование подтверждено!</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                <p class="mb-1">Стол №${tableNumber} забронирован на ${formatDate(dateStr)}</p>
-                <small class="text-muted">Проверьте email для подтверждения</small>
-            </div>
-        `;
-        
-        document.getElementById('toast-container').appendChild(toast);
-        
-        // Показываем toast
-        const bootstrapToast = new bootstrap.Toast(toast);
-        bootstrapToast.show();
-        
-        // Автоматически скрываем через 5 секунд
-        setTimeout(() => {
-            if (toast.parentNode) {
-                bootstrapToast.hide();
-            }
-        }, 5000);
-        
-        // Удаляем toast из DOM после скрытия
-        toast.addEventListener('hidden.bs.toast', function() {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        });
+    // Функция для показа уведомления о загрузке
+    function showLoadingNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        console.log('Loading:', message);
     }
 
-    // Загружаем данные при загрузке страницы
-    document.addEventListener('DOMContentLoaded', loadFreeDates);
+    // Функция для скрытия уведомления о загрузке
+    function hideLoadingNotification() {
+        // Реализация зависит от вашей системы уведомлений
+        console.log('Loading finished');
+    }
+
+    // Функция для показа уведомления об успехе
+    function showSuccessNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        alert('Успех: ' + message); // Временная реализация
+    }
+
+    // Функция для показа уведомления об ошибке
+    function showErrorNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        alert('Ошибка: ' + message); // Временная реализация
+    }
 </script>
 {% endblock %}

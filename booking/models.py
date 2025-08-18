@@ -68,14 +68,21 @@ class Booking(models.Model):
     
     Эта модель связывает пользователя, стол и дату бронирования
     """
-    
+    TIME_SLOTS = [
+        ('10:00', '10:00-12:00'),
+        ('12:00', '12:00-14:00'),
+        ('14:00', '14:00-16:00'),
+        ('16:00', '16:00-18:00'),
+        ('18:00', '18:00-20:00'),
+        ('20:00', '20:00-22:00'),
+    ]
     # DateField - поле для даты (без времени)
     # auto_now_add=True - автоматически устанавливает текущую дату при создании
     booking_date = models.DateField(
         verbose_name="Дата бронирования",
         help_text="На какую дату забронирован стол"
     )
-    
+    time_slot = models.CharField(max_length=5, choices=TIME_SLOTS, default='12:00')
     # ForeignKey - связь "многие к одному" с моделью Table
     # on_delete=models.CASCADE - при удалении стола удаляются все его бронирования
     table = models.ForeignKey(

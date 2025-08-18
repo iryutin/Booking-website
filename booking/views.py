@@ -7,7 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 
 # Импортируем утилиты Django для работы с датами и временем
 from django.utils import timezone
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 
 # Импортируем функцию render для отображения HTML шаблонов
 from django.shortcuts import render
@@ -65,228 +65,152 @@ class TableViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     @action(detail=True, methods=['get'], url_path='free-dates')
-    def free_dates(self, request, pk=None):
+    def free_slots(self, request, pk=None):
         """
-        Кастомное действие (action) для получения свободных дат конкретного стола
-        
-        @action - декоратор Django REST Framework для создания кастомных endpoints
-        detail=True - действие применяется к конкретному объекту (нужен pk)
-        methods=['get'] - разрешен только GET запрос
-        url_path='free-dates' - URL будет /api/tables/{id}/free-dates/
-        
-        request - объект запроса
-        pk - primary key (ID) стола (автоматически передается Django)
+        Получение свободных временных слотов для конкретного стола на выбранную дату
         """
-        
-        # self.get_object() - метод ViewSet для получения объекта по pk
         table = self.get_object()
-        
-        # timezone.now() - текущее время с учетом часового пояса
-        # .date() - получаем только дату без времени
-        today = timezone.now().date()
-        
-        # Получаем все забронированные даты для конкретного стола
-        # filter() - фильтруем записи по условиям
-        # table=table - фильтр по столу
-        # booking_date__gte=today - дата бронирования больше или равна сегодняшней
-        # values_list('booking_date', flat=True) - получаем только даты в виде списка
-        booked_dates = Booking.objects.filter(
+        date_str = request.query_params.get('date')
+
+        if not date_str:
+            return Response({'error': 'Необходимо указать параметр date (YYYY-MM-DD)'}, status=400)
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Неверный формат даты. Используйте YYYY-MM-DD'}, status=400)
+
+        # Получаем все занятые слоты на эту дату для этого стола
+        booked_slots = Booking.objects.filter(
             table=table,
-            booking_date__gte=today,
+            booking_date=date,
             is_confirmed=True
-        ).values_list('booking_date', flat=True)
+        ).values_list('time_slot', flat=True)
 
-        # Генерируем даты на следующие 30 дней
-        # timedelta(days=x) - добавляем x дней к дате
-        # list comprehension - создаем список дат
-        all_dates = [today + timedelta(days=x) for x in range(30)]
-        
-        # Фильтруем даты, исключая забронированные
-        # [date for date in all_dates if date not in booked_dates] - list comprehension
-        free_dates = [date for date in all_dates if date not in booked_dates]
+        # Все возможные слоты
+        all_slots = [slot[0] for slot in Booking.TIME_SLOTS]
 
-        # Response - класс Django REST Framework для возврата JSON ответа
+        # Свободные слоты
+        free_slots = [slot for slot in all_slots if slot not in booked_slots]
+
         return Response({
-            'table': table.number,  # Номер стола
-            'free_dates': [date.strftime('%Y-%m-%d') for date in free_dates],  # Свободные даты в формате YYYY-MM-DD
-            'booked_dates': [date.strftime('%Y-%m-%d') for date in booked_dates]  # Забронированные даты
-        })
-
-    @action(detail=False, methods=['get'], url_path='all-free-dates')
-    def all_free_dates(self, request):
-        """
-        Кастомное действие для получения свободных дат всех столов
-        
-        detail=False - действие применяется ко всем объектам (не нужен pk)
-        URL будет /api/tables/all-free-dates/
-        """
-        
-        today = timezone.now().date()
-        
-        # Получаем все бронирования начиная с сегодня
-        # values('table', 'booking_date') - получаем только нужные поля
-        all_bookings = Booking.objects.filter(
-            booking_date__gte=today,
-            is_confirmed=True
-        ).values('table', 'booking_date')
-        
-        # Генерируем даты на следующие 30 дней
-        all_dates = [today + timedelta(days=x) for x in range(30)]
-        
-        # Создаем словарь для каждого стола
-        tables_data = {}
-        
-        # Проходим по всем активным столам
-        for table in Table.objects.filter(is_active=True):
-            # Получаем забронированные даты для конкретного стола
-            # [b['booking_date'] for b in all_bookings if b['table'] == table.id] - list comprehension
-            table_bookings = [b['booking_date'] for b in all_bookings if b['table'] == table.id]
-            
-            # Находим свободные даты (исключаем забронированные)
-            free_dates = [d for d in all_dates if d not in table_bookings]
-            
-            # Сохраняем информацию о столе
-            tables_data[table.number] = {
-                'capacity': table.capacity,  # Вместимость
-                'free_dates': [date.strftime('%Y-%m-%d') for date in free_dates],  # Свободные даты
-                'booked_dates': [date.strftime('%Y-%m-%d') for date in table_bookings]  # Забронированные даты
-            }
-        
-        # Возвращаем структурированный ответ
-        return Response({
-            'date_range': {
-                'start': today.strftime('%Y-%m-%d'),  # Начальная дата
-                'end': (today + timedelta(days=29)).strftime('%Y-%m-%d')  # Конечная дата (через 30 дней)
-            },
-            'tables': tables_data  # Информация о всех столах
+            'table': table.number,
+            'date': date_str,
+            'free_slots': free_slots,
+            'booked_slots': list(booked_slots)
         })
 
     @action(detail=False, methods=['post'], url_path='create-booking')
     def create_booking(self, request):
         """
-        Кастомное действие для создания бронирования
-        
-        detail=False - действие применяется ко всем объектам (не нужен pk)
-        methods=['post'] - разрешен только POST запрос
-        URL будет /api/tables/create-booking/
+        Создание бронирования с указанием временного слота
         """
-        
-        # Получаем данные из запроса
         table_number = request.data.get('table_number')
-        booking_date_str = request.data.get('booking_date')
-        
-        # Валидация данных
-        if not table_number or not booking_date_str:
+        date_str = request.data.get('date')
+        time_slot = request.data.get('time_slot')
+
+        if not all([table_number, date_str, time_slot]):
             return Response(
-                {
-                    'error': 'Необходимо указать table_number и booking_date',
-                    'required_fields': ['table_number', 'booking_date']
-                },
+                {'error': 'Необходимо указать table_number, date и time_slot'},
                 status=400
-            )
-        
-        # Требуем авторизацию и наличие email для отправки подтверждения
-        if not request.user.is_authenticated or not getattr(request.user, 'email', None):
-            return Response(
-                {
-                    'error': 'Для бронирования войдите в систему и укажите email в профиле.'
-                },
-                status=401
             )
 
         try:
-            # Парсим дату
-            from datetime import datetime
-            booking_date = datetime.strptime(booking_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response(
-                {
-                    'error': 'Неверный формат даты. Используйте YYYY-MM-DD',
-                    'example': '2024-01-15'
-                },
-                status=400
-            )
-        
-        try:
-            # Получаем стол по номеру
-            from django.shortcuts import get_object_or_404
-            table = get_object_or_404(Table, number=table_number, is_active=True)
-            
-            # Проверяем, не забронирован ли уже стол на эту дату
-            if Booking.objects.filter(table=table, booking_date=booking_date).exists():
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            table = Table.objects.get(number=table_number, is_active=True)
+
+            # Проверяем допустимость временного слота
+            valid_slots = [slot[0] for slot in Booking.TIME_SLOTS]
+            if time_slot not in valid_slots:
                 return Response(
-                    {
-                        'error': f'Стол №{table_number} уже забронирован на {booking_date_str}',
-                        'table_number': table_number,
-                        'booking_date': booking_date_str
-                    },
+                    {'error': f'Недопустимый временной слот. Допустимые значения: {valid_slots}'},
+                    status=400
+                )
+
+            # Проверяем доступность
+            if Booking.objects.filter(table=table, booking_date=date, time_slot=time_slot).exists():
+                return Response(
+                    {'error': 'Этот временной слот уже занят'},
                     status=409
                 )
-            
-            # Создаем бронирование (неподтвержденное, с токеном)
+
             booking = Booking.objects.create(
                 table=table,
-                booking_date=booking_date,
-                user=request.user if request.user.is_authenticated else None,
-                is_confirmed=False
+                booking_date=date,
+                time_slot=time_slot,
+                user=request.user if request.user.is_authenticated else None
             )
-            
-            # Отправляем письмо с подтверждением, если у пользователя есть email
-            try:
-                recipient = None
-                if request.user.is_authenticated and request.user.email:
-                    recipient = request.user.email
-                if recipient:
-                    confirmation_url = request.build_absolute_uri(
-                        f"/api/tables/confirm-booking/{booking.confirmation_token}/"
-                    )
-                    subject = "Подтверждение бронирования стола"
-                    message = (
-                        f"Здравствуйте!\n\n"
-                        f"Вы запросили бронирование стола №{table.number} на дату {booking_date_str}.\n"
-                        f"Для подтверждения перейдите по ссылке: {confirmation_url}\n\n"
-                        f"Если вы не делали этот запрос, просто проигнорируйте письмо."
-                    )
-                    send_mail(
-                        subject,
-                        message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [recipient],
-                        fail_silently=True,
-                    )
-            except Exception:
-                pass
 
-            # Возвращаем успешный ответ
-            return Response(
-                {
-                    'success': True,
-                    'message': f'Стол №{table_number} успешно забронирован на {booking_date_str}',
-                    'booking': {
-                        'id': booking.id,
-                        'table_number': table_number,
-                        'booking_date': booking_date_str,
-                        'user': request.user.username if request.user.is_authenticated else 'Анонимный пользователь',
-                        'created_date': booking.created_date.isoformat(),
-                        'is_confirmed': booking.is_confirmed,
-                        'confirmation_token': str(booking.confirmation_token),
-                        'confirmation_url': request.build_absolute_uri(
-                            f"/api/tables/confirm-booking/{booking.confirmation_token}/"
-                        )
-                    }
-                },
-                status=201
-            )
-            
+            # Отправка email с подтверждением
+            if request.user.is_authenticated and request.user.email:
+                confirmation_url = request.build_absolute_uri(
+                    f"/api/tables/confirm-booking/{booking.confirmation_token}/"
+                )
+                send_mail(
+                    'Подтверждение бронирования',
+                    f'Подтвердите бронирование стола {table.number} на {date_str} {time_slot}: {confirmation_url}',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [request.user.email],
+                    fail_silently=True,
+                )
+
+            return Response({
+                'success': True,
+                'booking_id': booking.id,
+                'table': table.number,
+                'date': date_str,
+                'time_slot': time_slot,
+                'confirmation_url': confirmation_url
+            }, status=201)
+
+        except Table.DoesNotExist:
+            return Response({'error': 'Стол не найден'}, status=404)
         except Exception as e:
-            return Response(
-                {
-                    'error': f'Ошибка при создании бронирования: {str(e)}',
-                    'table_number': table_number,
-                    'booking_date': booking_date_str
-                },
-                status=500
-            )
+            return Response({'error': str(e)}, status=400)
+
+    @action(detail=False, methods=['get'], url_path='available-slots')
+    def available_slots(self, request):
+        """
+        Получение всех доступных слотов для всех столов на выбранную дату
+        """
+        date_str = request.query_params.get('date')
+
+        if not date_str:
+            return Response({'error': 'Необходимо указать параметр date'}, status=400)
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Неверный формат даты'}, status=400)
+
+        # Получаем все бронирования на эту дату
+        bookings = Booking.objects.filter(
+            booking_date=date,
+            is_confirmed=True
+        ).values('table', 'time_slot')
+
+        # Создаем структуру данных для ответа
+        response_data = {}
+        all_slots = [slot[0] for slot in Booking.TIME_SLOTS]
+
+        for table in Table.objects.filter(is_active=True):
+            # Занятые слоты для этого стола
+            table_bookings = bookings.filter(table=table.id)
+            booked_slots = [b['time_slot'] for b in table_bookings]
+
+            # Свободные слоты
+            free_slots = [slot for slot in all_slots if slot not in booked_slots]
+
+            response_data[table.number] = {
+                'capacity': table.capacity,
+                'free_slots': free_slots,
+                'booked_slots': booked_slots
+            }
+
+        return Response({
+            'date': date_str,
+            'tables': response_data
+        })
 
     @action(detail=False, methods=['get'], url_path=r'confirm-booking/(?P<token>[0-9a-f\-]{36})')
     def confirm_booking(self, request, token=None):
