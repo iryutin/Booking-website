@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}О ресторане{% endblock %}
 
@@ -63,6 +64,95 @@
                         <i class="fas fa-car fa-2x text-warning mb-2"></i>
                         <h6>Парковка</h6>
                         <p>Бесплатная парковка для гостей ресторана</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Форма обратной связи -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-envelope me-2"></i>
+                            Обратная связь
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Имя *</label>
+                                    <input type="text" name="name" class="form-control" placeholder="Ваше имя" required>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email *</label>
+                                    <input type="email" name="email" class="form-control" placeholder="Ваш email" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Телефон</label>
+                                <input type="tel" name="phone" class="form-control" placeholder="Ваш телефон">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Сообщение *</label>
+                                <textarea name="message" class="form-control" rows="4" placeholder="Ваше сообщение" required></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" required id="agreeCheck" name="agree">
+                                    <label class="form-check-label" for="agreeCheck">
+                                        Я согласен на обработку персональных данных
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                Отправить сообщение
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контактная информация -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Контактная информация</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <i class="fas fa-phone text-primary me-2"></i>
+                                <strong>Телефон:</strong> +7 (XXX) XXX-XX-XX
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <i class="fas fa-envelope text-primary me-2"></i>
+                                <strong>Email:</strong> info@restaurant.ru
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                                <strong>Адрес:</strong> г. Москва, ул. Примерная, д. 1
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

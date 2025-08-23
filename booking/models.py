@@ -183,3 +183,34 @@ class Booking(models.Model):
         self.confirmation_token = None
         self.save(update_fields=["is_confirmed", "confirmed_at", "confirmation_token"])
 
+class Feedback(models.Model):
+
+    name = models.CharField(
+        max_length=100,
+        verbose_name='Имя',
+    )
+
+    email = models.EmailField(verbose_name='Email')
+
+    phone = models.CharField(
+        max_length=20,
+        verbose_name='Телефон',
+        blank=True,
+        null=True
+    )
+
+    message = models.TextField(
+        verbose_name='Сообщение',
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания'
+    )
+
+    class Meta:
+        verbose_name = 'обратная связь'
+        verbose_name_plural = 'обратные связи'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} - {self.subject}'

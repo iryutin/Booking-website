@@ -15,10 +15,13 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib import messages
+from django.shortcuts import redirect
 
 # Импортируем наши модели и сериализаторы
 from .models import Table, Booking
 from .serializers import TableSerializer
+from .form import FeedbackForm
 
 
 def free_dates_page(request):
@@ -250,6 +253,43 @@ class HomePageView(TemplateView):
 class AboutRestaurantView(TemplateView):
     """Страница 'О ресторане'"""
     template_name = 'about.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Добавляем форму в контекст
+        context['feedback_form'] = FeedbackForm()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        # Обрабатываем POST запрос (отправку формы)
+        feedback_form = FeedbackForm(request.POST)
+
+        if feedback_form.is_valid():
+            feedback = feedback_form.save(commit=False)
+
+            feedback.save()
+
+            # Сообщение об успехе
+            messages.success(
+                request,
+                'Ваше сообщение успешно отправлено! Мы свяжемся с вами в ближайшее время.'
+            )
+
+            # Перенаправляем на эту же страницу (чтобы избежать повторной отправки формы)
+            return redirect('booking:about')
+
+        else:
+            # Если форма невалидна, показываем ошибки
+            messages.error(
+                request,
+                'Пожалуйста, исправьте ошибки в форме.'
+            )
+
+            # Возвращаем страницу с формой и ошибками
+            context = self.get_context_data()
+            context['feedback_form'] = feedback_form  # Форма с ошибками
+            return self.render_to_response(context)
+
 
 class ProfileView(LoginRequiredMixin, TemplateView):
     """Личный кабинет пользователя"""
