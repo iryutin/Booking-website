@@ -167,7 +167,7 @@ AUTH_USER_MODEL = 'user.CustomUser'
 # ==================== НАСТРОЙКИ ПОЧТЫ ====================
 
 # Читаем настройки почтового сервера из .env, чтобы не хранить чувствительные данные в коде
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 

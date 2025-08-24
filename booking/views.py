@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 
 # Импортируем утилиты Django для работы с датами и временем
 from django.utils import timezone
-from datetime import timedelta, date, datetime
+from datetime import datetime, timedelta
 
 # Импортируем функцию render для отображения HTML шаблонов
 from django.shortcuts import render
@@ -69,42 +69,6 @@ class TableViewSet(viewsets.ModelViewSet):
     # AllowAny - разрешить доступ всем пользователям (включая анонимных)
     permission_classes = [permissions.AllowAny]
 
-    @action(detail=True, methods=['get'], url_path='free-dates')
-    def free_slots(self, request, pk=None):
-        """
-        Получение свободных временных слотов для конкретного стола на выбранную дату
-        """
-        table = self.get_object()
-        date_str = request.query_params.get('date')
-
-        if not date_str:
-            return Response({'error': 'Необходимо указать параметр date (YYYY-MM-DD)'}, status=400)
-
-        try:
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({'error': 'Неверный формат даты. Используйте YYYY-MM-DD'}, status=400)
-
-        # Получаем все занятые слоты на эту дату для этого стола
-        booked_slots = Booking.objects.filter(
-            table=table,
-            booking_date=date,
-            is_confirmed=True
-        ).values_list('time_slot', flat=True)
-
-        # Все возможные слоты
-        all_slots = [slot[0] for slot in Booking.TIME_SLOTS]
-
-        # Свободные слоты
-        free_slots = [slot for slot in all_slots if slot not in booked_slots]
-
-        return Response({
-            'table': table.number,
-            'date': date_str,
-            'free_slots': free_slots,
-            'booked_slots': list(booked_slots)
-        })
-
     @action(detail=False, methods=['post'], url_path='create-booking')
     def create_booking(self, request):
         """
@@ -119,9 +83,31 @@ class TableViewSet(viewsets.ModelViewSet):
                 {'error': 'Необходимо указать table_number, date и time_slot'},
                 status=400
             )
+        booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
 
         try:
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            if booking_date < timezone.now().date():
+                return Response(
+                    {'error': 'Нельзя забронировать стол на прошедшую дату'},
+                    status=400
+                )
+
+                # ПРОВЕРКА: если бронь на сегодня, проверяем время
+            if booking_date == timezone.now().date():
+                # Получаем текущее время
+                now = timezone.now()
+                # Преобразуем время слота в datetime
+                slot_time = datetime.strptime(time_slot, '%H:%M').time()
+                booking_datetime = timezone.make_aware(
+                    datetime.combine(booking_date, slot_time)
+                )
+                # Проверяем что до бронирования осталось больше 2 часов
+                if booking_datetime - now < timedelta(hours=2):
+                    return Response(
+                        {'error': 'Нельзя забронировать стол менее чем за 2 часа до времени брони'},
+                        status=400
+                    )
+
             table = Table.objects.get(number=table_number, is_active=True)
 
             # Проверяем допустимость временного слота
@@ -133,7 +119,7 @@ class TableViewSet(viewsets.ModelViewSet):
                 )
 
             # Проверяем доступность
-            if Booking.objects.filter(table=table, booking_date=date, time_slot=time_slot).exists():
+            if Booking.objects.filter(table=table, booking_date=booking_date, time_slot=time_slot).exists():
                 return Response(
                     {'error': 'Этот временной слот уже занят'},
                     status=409
@@ -141,7 +127,7 @@ class TableViewSet(viewsets.ModelViewSet):
 
             booking = Booking.objects.create(
                 table=table,
-                booking_date=date,
+                booking_date=booking_date,
                 time_slot=time_slot,
                 user=request.user if request.user.is_authenticated else None
             )
@@ -191,7 +177,6 @@ class TableViewSet(viewsets.ModelViewSet):
         # Получаем все бронирования на эту дату
         bookings = Booking.objects.filter(
             booking_date=date,
-            is_confirmed=True
         ).values('table', 'time_slot')
 
         # Создаем структуру данных для ответа
