@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import DeleteView
+from django.urls import reverse_lazy
 
 # Импортируем утилиты Django для работы с датами и временем
 from django.utils import timezone
@@ -300,3 +302,8 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['bookings'] = Booking.objects.filter(user=self.request.user)
         return context
+
+class BookingDeliteView (DeleteView):
+    model = Booking
+    template_name = 'bookingt_delite.html'
+    success_url = reverse_lazy('booking:profile')

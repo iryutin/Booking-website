@@ -5,7 +5,7 @@ from booking.apps import BookingConfig
 from rest_framework.routers import DefaultRouter
 
 # Импортируем наши представления (views)
-from .views import TableViewSet, free_dates_page, HomePageView, AboutRestaurantView, ProfileView
+from .views import TableViewSet, free_dates_page, HomePageView, AboutRestaurantView, ProfileView, BookingDeliteView
 
 app_name = BookingConfig.name
 # Создаем экземпляр роутера для автоматической генерации URL
@@ -41,4 +41,5 @@ urlpatterns = [
     # include(router.urls) - включает все URL, созданные роутером
     # Это создаст /api/tables/, /api/tables/{id}/, /api/tables/{id}/free-dates/ и т.д.
     path('api/', include(router.urls)),
+    path('profile/<int:pk>/delite/', BookingDeliteView.as_view(), name='booking_delite'),
 ]

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Личный кабинет{% endblock %}
+
+{% block content %}
+<div class="container text-bg-primary mb-3"></div>
+  <h1 class="mb-4">Удалить бронь?</h1>
+
+      <div class="flex-grow-1">
+          <h6 class="mb-1">Стол №{{ booking.table.number }}</h6>
+          <p class="mb-1 text-muted">
+              <i class="fas fa-calendar me-1"></i>
+              <span class="booking-date">{{ booking.booking_date|date:"d.m.Y" }}</span>
+              <i class="fas fa-clock ms-3 me-1"></i>
+              <span class="booking-time">{{ booking.time_slot }}</span>
+          </p>
+          <small class="text-muted">
+              Создано: {{ booking.created_date|date:"d.m.Y H:i" }}
+              {% if booking.is_confirmed %}
+                <span class="badge bg-success ms-2">Подтверждено</span>
+              {% else %}
+                <span class="badge bg-warning ms-2">Ожидает подтверждения</span>
+              {% endif %}
+          </small>
+      </div>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit " class="btn btn-danger">Удалить</button>
+    <a href="{% url 'booking:profile' %}" class="btn btn-secondary">Отмена</a>
+  </form>
+
+{% endblock %}
