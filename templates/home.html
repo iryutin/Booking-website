@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Ресторан{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Герой-секция -->
+    <div class="col-12">
+        <div class="hero-section text-center py-5 bg-light rounded">
+            <h1 class="display-4 mb-4">Добро пожаловать в наш ресторан</h1>
+            <p class="lead mb-4">Откройте для себя изысканную кухню и уютную атмосферу</p>
+            <a href="{% url 'booking:free_dates_page' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-calendar-plus me-2"></i>Забронировать стол
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <!-- О ресторане -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h3 class="card-title">
+                    <i class="fas fa-star text-warning me-2"></i>О нас
+                </h3>
+                <p class="card-text">
+                    Наш ресторан предлагает изысканные блюда европейской и русской кухни.
+                    Мы создаем особую атмосферу для незабываемых моментов.
+                </p>
+                <a href="{% url 'booking:about' %}" class="btn btn-outline-primary">Узнать больше</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Меню -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h3 class="card-title">
+                    <i class="fas fa-utensils text-success me-2"></i>Меню
+                </h3>
+                <p class="card-text">
+                    Шеф-повар готовит блюда из свежих сезонных продуктов.
+                    У нас вы найдете как классические, так и авторские рецепты.
+                </p>
+                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#menuModal">
+                    Посмотреть меню
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Контакты -->
+    <div class="col-md-4 mb-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-phone fa-2x text-primary mb-3"></i>
+                <h5 class="card-title">Телефон</h5>
+                <p class="card-text">+7 (999) 123-45-67</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-map-marker-alt fa-2x text-danger mb-3"></i>
+                <h5 class="card-title">Адрес</h5>
+                <p class="card-text">ул. Примерная, д. 123</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-clock fa-2x text-success mb-3"></i>
+                <h5 class="card-title">Часы работы</h5>
+                <p class="card-text">Пн-Вс: 10:00 - 23:00</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с меню -->
+<div class="modal fade" id="menuModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Наше меню</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Закуски</h6>
+                        <ul class="list-unstyled">
+                            <li>Салат Цезарь - 450₽</li>
+                            <li>Брускетта - 280₽</li>
+                            <li>Карпаччо - 520₽</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Основные блюда</h6>
+                        <ul class="list-unstyled">
+                            <li>Стейк Рибай - 1200₽</li>
+                            <li>Паста Карбонара - 680₽</li>
+                            <li>Лосось на гриле - 890₽</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+
+{% block title %}Бронирование столов{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Заголовок страницы -->
+        <div class="text-center py-4 bg-light rounded mb-4">
+            <h1 class="display-4">
+                <i class="fas fa-calendar-check text-primary me-3"></i>
+                Бронирование столов
+            </h1>
+            <p class="lead text-muted">Выберите дату, время и столик</p>
+
+            <!-- Предупреждение для неавторизованных пользователей -->
+            {% if not user.is_authenticated %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Внимание!</strong> Для бронирования столика необходимо
+                    <a href="{% url 'user:login' %}" class="alert-link">войти в систему</a> или
+                    <a href="{% url 'user:register' %}" class="alert-link">зарегистрироваться</a>.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Выбор даты -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><i class="far fa-calendar-alt me-2"></i>Выберите дату</h5>
+                <input type="date" id="datePicker" class="form-control" min="{{ today|date:'Y-m-d' }}" max="{{ max_date|date:'Y-m-d' }}">
+            </div>
+        </div>
+
+        <!-- Кнопка поиска -->
+        <div class="text-center mb-4">
+            <button class="btn btn-primary btn-lg" onclick="loadAvailableSlots()">
+                <i class="fas fa-search me-2"></i>Найти доступные слоты
+            </button>
+        </div>
+
+        <!-- Индикатор загрузки -->
+        <div id="loading" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-3 text-muted">Ищем свободные слоты...</p>
+        </div>
+
+        <!-- Сообщение об ошибке -->
+        <div id="error" class="alert alert-danger" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="error-message"></span>
+        </div>
+
+        <!-- Контейнер для результатов -->
+        <div id="results-container" style="display: none;">
+            <h4 class="mb-3">Доступные слоты на <span id="selected-date"></span></h4>
+
+            <div class="row" id="slots-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно бронирования -->
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Подтверждение бронирования</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы хотите забронировать:</p>
+                <ul class="list-group mb-3">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Стол:</span>
+                        <strong id="modal-table-number"></strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Дата:</span>
+                        <strong id="modal-date"></strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Время:</span>
+                        <strong id="modal-time"></strong>
+                    </li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    После подтверждения на указанный email придет письмо с деталями бронирования.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" id="confirmBookingBtn">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Текущая дата в формате YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+
+    // Установка минимальной даты в календаре
+    document.getElementById('datePicker').value = today;
+
+    // Функция для загрузки доступных слотов
+    async function loadAvailableSlots() {
+        const date = document.getElementById('datePicker').value;
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const results = document.getElementById('results-container');
+
+        loading.style.display = 'block';
+        error.style.display = 'none';
+        results.style.display = 'none';
+
+        try {
+            const response = await fetch(`/api/tables/available-slots/?date=${date}`);
+
+            if (!response.ok) {
+                throw new Error('Ошибка сервера');
+            }
+
+            const data = await response.json();
+            displayAvailableSlots(data, date);
+
+            loading.style.display = 'none';
+            results.style.display = 'block';
+
+        } catch (err) {
+            console.error('Ошибка:', err);
+            loading.style.display = 'none';
+            document.getElementById('error-message').textContent = err.message;
+            error.style.display = 'block';
+        }
+    }
+
+    // Функция для отображения доступных слотов
+    function displayAvailableSlots(data, date) {
+        const slotsContainer = document.getElementById('slots-container');
+        const dateElement = document.getElementById('selected-date');
+
+        // Форматируем дату для отображения
+        const formattedDate = new Date(date).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            weekday: 'long'
+        });
+
+        dateElement.textContent = formattedDate;
+        slotsContainer.innerHTML = '';
+
+        // Создаем карточки для каждого стола
+        for (const [tableNumber, tableData] of Object.entries(data.tables)) {
+            if (tableData.free_slots.length > 0) {
+                const tableCard = document.createElement('div');
+                tableCard.className = 'col-md-6 col-lg-4 mb-4';
+
+                tableCard.innerHTML = `
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Стол ${tableNumber}</h5>
+                            <span class="badge bg-primary">${tableData.capacity} чел.</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">Свободные слоты:</h6>
+                            <div class="d-flex flex-wrap gap-2" id="slots-table-${tableNumber}"></div>
+                        </div>
+                    </div>
+                `;
+
+                slotsContainer.appendChild(tableCard);
+
+                // Добавляем кнопки для каждого временного слота
+                const slotsDiv = document.getElementById(`slots-table-${tableNumber}`);
+                tableData.free_slots.forEach(slot => {
+                    const slotBtn = document.createElement('button');
+                    slotBtn.className = 'btn btn-outline-success btn-sm';
+                    slotBtn.textContent = slot;
+                    slotBtn.onclick = () => showBookingModal(tableNumber, date, slot);
+                    slotsDiv.appendChild(slotBtn);
+                });
+            }
+        }
+    }
+
+    // Функция для показа модального окна бронирования
+    function showBookingModal(tableNumber, date, timeSlot) {
+        const modal = new bootstrap.Modal(document.getElementById('bookingModal'));
+
+        // Заполняем данные в модальном окне
+        document.getElementById('modal-table-number').textContent = tableNumber;
+        document.getElementById('modal-date').textContent = new Date(date).toLocaleDateString('ru-RU');
+        document.getElementById('modal-time').textContent = timeSlot;
+
+        // Обработчик подтверждения бронирования
+        document.getElementById('confirmBookingBtn').onclick = async () => {
+            modal.hide();
+            await createBooking(tableNumber, date, timeSlot);
+        };
+
+        modal.show();
+    }
+
+    // Функция для создания бронирования
+    async function createBooking(tableNumber, date, timeSlot) {
+        const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+
+        if (!isAuthenticated) {
+            showErrorNotification('Для бронирования необходимо войти в систему');
+            return;
+        }
+
+        showLoadingNotification('Создание бронирования...');
+
+        try {
+            const response = await fetch('/api/tables/create-booking/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    table_number: tableNumber,
+                    date: date,
+                    time_slot: timeSlot
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showSuccessNotification('Бронирование создано! Проверьте email для подтверждения');
+                loadAvailableSlots(); // Обновляем список слотов
+            } else {
+                throw new Error(data.error || 'Ошибка при создании бронирования');
+            }
+        } catch (err) {
+            showErrorNotification(err.message);
+        } finally {
+            hideLoadingNotification();
+        }
+    }
+
+    // Функция для показа уведомления о загрузке
+    function showLoadingNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        console.log('Loading:', message);
+    }
+
+    // Функция для скрытия уведомления о загрузке
+    function hideLoadingNotification() {
+        // Реализация зависит от вашей системы уведомлений
+        console.log('Loading finished');
+    }
+
+    // Функция для показа уведомления об успехе
+    function showSuccessNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        alert('Успех: ' + message); // Временная реализация
+    }
+
+    // Функция для показа уведомления об ошибке
+    function showErrorNotification(message) {
+        // Реализация зависит от вашей системы уведомлений
+        alert('Ошибка: ' + message); // Временная реализация
+    }
+</script>
+{% endblock %}
