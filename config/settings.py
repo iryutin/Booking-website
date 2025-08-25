@@ -131,7 +131,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'  # Английский (США)
 
 # TIME_ZONE - часовой пояс
-TIME_ZONE = 'UTC'  # Всемирное координированное время
+TIME_ZONE = 'Europe/Moscow'  # Всемирное координированное время
 
 # USE_I18N - включить интернационализацию (переводы)
 USE_I18N = True
